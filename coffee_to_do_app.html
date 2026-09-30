@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee To-Do</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Theme Color for mobile browsers -->
+    <meta name="theme-color" content="#4C2808">
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Phosphor Icons for aesthetic buttons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        palette: {
+                            vanilla: '#D7BDA6',
+                            caramel: '#A87743',
+                            almond: '#B7957F',
+                            coffee: '#6D3914',
+                            mocca: '#84593D',
+                            espresso: '#4C2808',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .title-font {
+            font-family: 'Merriweather', serif;
+        }
+
+        .task-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #B7957F; /* Almond */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #A87743; /* Caramel */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #84593D; /* Mocca */
+        }
+    </style>
+</head>
+<body class="bg-palette-almond min-h-screen flex items-center justify-center p-4 text-palette-espresso selection:bg-palette-caramel selection:text-white">
+
+    <main class="bg-palette-almond w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-palette-coffee flex flex-col h-[85vh] max-h-[700px]">
+        
+        <!-- Header -->
+        <header class="bg-palette-espresso text-palette-vanilla p-6 shadow-md relative z-10">
+            <div class="flex items-center justify-between mb-2">
+                <h1 class="text-2xl font-bold title-font flex items-center gap-2">
+                    <i class="ph-fill ph-coffee text-3xl text-palette-caramel"></i>
+                    Coffee Tasks
+                </h1>
+                <span id="task-count" class="text-sm font-medium bg-palette-coffee px-3 py-1 rounded-full text-palette-vanilla">
+                    0/0
+                </span>
+            </div>
+            <p class="text-palette-almond text-sm opacity-90">Prepare sua xícara e organize seu dia.</p>
+        </header>
+
+        <!-- Input Area -->
+        <div class="p-6 bg-palette-almond border-b border-palette-coffee">
+            <form id="todo-form" class="flex gap-2 relative">
+                <input 
+                    type="text" 
+                    id="todo-input" 
+                    placeholder="Adicionar nova tarefa..." 
+                    class="w-full bg-white border border-palette-coffee text-palette-espresso placeholder-palette-coffee rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-palette-caramel focus:border-transparent transition-all shadow-sm"
+                    required
+                >
+                <button 
+                    type="submit" 
+                    class="bg-palette-caramel hover:bg-palette-mocca text-white p-3 rounded-xl transition-colors shadow-md flex items-center justify-center shrink-0 w-12"
+                    aria-label="Adicionar tarefa"
+                >
+                    <i class="ph-bold ph-plus text-xl"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Task List -->
+        <div class="flex-1 overflow-y-auto p-6 bg-palette-almond">
+            <ul id="todo-list" class="space-y-3">
+                <!-- Tasks will be injected here via JavaScript -->
+            </ul>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden flex-col items-center justify-center h-full text-palette-coffee opacity-70 mt-10">
+                <i class="ph-duotone ph-coffee-bean text-6xl mb-3"></i>
+                <p class="text-center text-sm">Nenhuma tarefa no momento.<br>Aproveite seu café!</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State management
+        let tasks = JSON.parse(localStorage.getItem('coffee-tasks')) || [];
+        
+        // DOM Elements
+        const form = document.getElementById('todo-form');
+        const input = document.getElementById('todo-input');
+        const list = document.getElementById('todo-list');
+        const emptyState = document.getElementById('empty-state');
+        const taskCount = document.getElementById('task-count');
+
+        // Initial Render
+        renderTasks();
+
+        // Form Submit Event
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text) {
+                addTask(text);
+                input.value = '';
+                input.focus();
+            }
+        });
+
+        // Add a new task
+        function addTask(text) {
+            const newTask = {
+                id: Date.now().toString(),
+                text: text,
+                completed: false
+            };
+            tasks.unshift(newTask); // Add to beginning
+            saveAndRender();
+        }
+
+        // Toggle task completion
+        function toggleTask(id) {
+            tasks = tasks.map(task => 
+                task.id === id ? { ...task, completed: !task.completed } : task
+            );
+            saveAndRender();
+        }
+
+        // Delete a task
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveAndRender();
+        }
+
+        // Save to localStorage and update UI
+        function saveAndRender() {
+            localStorage.setItem('coffee-tasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        // Render tasks to DOM
+        function renderTasks() {
+            list.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+                
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = `task-enter flex items-center justify-between p-4 rounded-xl border ${
+                        task.completed 
+                            ? 'bg-palette-vanilla border-palette-coffee opacity-60 text-palette-coffee shadow-sm' 
+                            : 'bg-palette-vanilla border-palette-coffee text-palette-espresso shadow-md'
+                    } transition-all duration-200`;
+                    
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <button 
+                                onclick="toggleTask('${task.id}')"
+                                class="shrink-0 w-6 h-6 rounded flex items-center justify-center border-2 transition-colors ${
+                                    task.completed 
+                                        ? 'bg-palette-caramel border-palette-caramel text-white' 
+                                        : 'border-palette-coffee text-transparent hover:border-palette-mocca'
+                                }"
+                            >
+                                <i class="ph-bold ph-check text-sm"></i>
+                            </button>
+                            <span class="truncate transition-all ${task.completed ? 'line-through' : ''}">${escapeHtml(task.text)}</span>
+                        </div>
+                        <button 
+                            onclick="deleteTask('${task.id}')"
+                            class="shrink-0 ml-2 text-palette-coffee hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-palette-vanilla"
+                            aria-label="Deletar tarefa"
+                        >
+                            <i class="ph-fill ph-trash text-lg"></i>
+                        </button>
+                    `;
+                    list.appendChild(li);
+                });
+            }
+            
+            // Update counts
+            const completedCount = tasks.filter(t => t.completed).length;
+            taskCount.textContent = `${completedCount}/${tasks.length}`;
+        }
+
+        // Helper to prevent XSS
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
